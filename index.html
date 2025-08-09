@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>xG/Poisson 价值投注计算器</title>
+<title>xG/Poisson 价值投注计算器（含自动HA）</title>
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:18px;line-height:1.4}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:18px;line-height:1.45}
   h1{font-size:20px;margin:0 0 12px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   label{font-size:13px;color:#333}
-  input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+  input{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
   .card{background:#f8f9fb;border:1px solid #e7e9ef;border-radius:12px;padding:14px;margin:10px 0}
   button{width:100%;padding:12px;border:0;border-radius:10px;background:#16a34a;color:#fff;font-weight:600;font-size:16px}
   table{width:100%;border-collapse:collapse;margin-top:10px}
@@ -21,7 +21,7 @@
 </style>
 </head>
 <body>
-  <h1>xG / xGA + 泊松 + 赔率（去水）价值投注</h1>
+  <h1>投注</h1>
 
   <div class="card">
     <div class="grid">
@@ -44,6 +44,17 @@
       <div><label>Edge 阈值（%）</label><input id="edge" type="number" step="0.01" value="0.03"></div>
       <div><label>Poisson 截断（最大进球）</label><input id="gmax" type="number" step="1" value="6"></div>
     </div>
+
+    <!-- 新增：自动计算 HA 的小卡片 -->
+    <div class="card" style="margin-top:14px">
+      <b>自动计算主场优势系数（HA）</b>
+      <div class="grid" style="margin-top:8px">
+        <div><label>主队【主场】xG（来自 FootyStats）</label><input id="h_xg_home" type="number" step="0.01" placeholder="例如 1.96"></div>
+        <div><label>主队【客场】xG（来自 FootyStats）</label><input id="h_xg_away" type="number" step="0.01" placeholder="例如 1.62"></div>
+      </div>
+      <small>HA = 主场xG ÷ 客场xG，并做稳健夹取（1.03～1.20）。填写任意一个为空时不自动更新。</small>
+    </div>
+
     <p><button onclick="run()">计算</button></p>
     <small>λ 公式：λ<sub>home</sub>=(w·xG<sub>home</sub> + (1−w)·xGA<sub>away</sub>)·HA； λ<sub>away</sub>=(w·xG<sub>away</sub> + (1−w)·xGA<sub>home</sub>)/HA</small>
   </div>
@@ -53,6 +64,8 @@
 <script>
   function pois(k, lambda){ return Math.exp(-lambda) * Math.pow(lambda, k) / fact(k); }
   function fact(n){ let r=1; for(let i=2;i<=n;i++) r*=i; return r; }
+
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
 
   function run(){
     const hxg=+hxg_el.value, hxga=+hxga_el.value, axg=+axg_el.value, axga=+axga_el.value;
@@ -68,7 +81,7 @@
     const pH = Array.from({length:gmax+1},(_,k)=>pois(k,lamH));
     const pA = Array.from({length:gmax+1},(_,k)=>pois(k,lamA));
 
-    // joint matrix & sums
+    // joint sums
     let pDraw=0, pHome=0, pAway=0, pOver25=0, sum=0;
     for(let i=0;i<=gmax;i++){
       for(let j=0;j<=gmax;j++){
@@ -78,7 +91,6 @@
         if(i+j>=3) pOver25 += pij;
       }
     }
-    // if truncated < 1, normalize
     if(sum>0 && sum<0.999){ pDraw/=sum; pHome/=sum; pAway/=sum; pOver25/=sum; }
 
     // market de-juiced
@@ -99,7 +111,6 @@
     const decD = (evD>=ev1x2 && edgeD>=edgeThr)?'BUY':'PASS';
     const decA = (evA>=ev1x2 && edgeA>=edgeThr)?'BUY':'PASS';
 
-    // render
     out.innerHTML = `
       <div class="card">
         <b>λ（预期进球）</b>
@@ -142,12 +153,11 @@
           <tr><td>平局 @ ${o_d}</td><td>${(edgeD*100).toFixed(1)}%</td><td>${(evD*100).toFixed(1)}%</td><td class="${decD==='BUY'?'ok':'no'}">${decD}</td></tr>
           <tr><td>客胜 @ ${o_a}</td><td>${(edgeA*100).toFixed(1)}%</td><td>${(evA*100).toFixed(1)}%</td><td class="${decA==='BUY'?'ok':'no'}">${decA}</td></tr>
         </table>
-        <small>默认阈值：大小球 EV ≥ ${Math.round(evOU*100)}%，1X2 EV ≥ ${Math.round(ev1x2*100)}%，Edge ≥ ${Math.round(edgeThr*100)}%。可在上方调整。</small>
       </div>
     `;
   }
 
-  // bind elements
+  // 元素引用
   const hxg_el= document.getElementById('hxg');
   const hxga_el=document.getElementById('hxga');
   const axg_el= document.getElementById('axg');
@@ -165,7 +175,23 @@
   const gmax_el=document.getElementById('gmax');
   const out=document.getElementById('out');
 
-  run(); // initial render
+  // 新增：自动 HA 相关
+  const h_xg_home = document.getElementById('h_xg_home');
+  const h_xg_away = document.getElementById('h_xg_away');
+
+  function autoHA(){
+    const a = parseFloat(h_xg_home.value);
+    const b = parseFloat(h_xg_away.value);
+    if(!isFinite(a) || !isFinite(b) || b<=0) return;
+    // 稳健夹取，避免极端值
+    const raw = a / b;
+    const ha = clamp(raw, 1.03, 1.20);
+    ha_el.value = ha.toFixed(2);
+  }
+  h_xg_home.addEventListener('input', autoHA);
+  h_xg_away.addEventListener('input', autoHA);
+
+  run(); // 初次渲染
 </script>
 </body>
 </html>
