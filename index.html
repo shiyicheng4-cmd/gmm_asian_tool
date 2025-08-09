@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>GMM 亚盘预测工具</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    h1 { text-align: center; }
+    .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    input { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 15px; padding: 10px; width: 100%; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background: #45a049; }
+    .result { margin-top: 20px; padding: 15px; background: #e2f0d9; border-radius: 5px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>GMM 亚盘预测工具</h1>
+
+    <label>主队场均进球</label>
+    <input type="number" id="homeGoals" step="0.01" placeholder="例如 1.45">
+
+    <label>客队场均进球</label>
+    <input type="number" id="awayGoals" step="0.01" placeholder="例如 1.20">
+
+    <label>主队场均失球</label>
+    <input type="number" id="homeConcede" step="0.01" placeholder="例如 1.10">
+
+    <label>客队场均失球</label>
+    <input type="number" id="awayConcede" step="0.01" placeholder="例如 1.30">
+
+    <button onclick="calculate()">计算预测盘口</button>
+
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+function calculate() {
+    let homeGoals = parseFloat(document.getElementById('homeGoals').value) || 0;
+    let awayGoals = parseFloat(document.getElementById('awayGoals').value) || 0;
+    let homeConcede = parseFloat(document.getElementById('homeConcede').value) || 0;
+    let awayConcede
