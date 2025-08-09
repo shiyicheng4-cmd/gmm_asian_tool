@@ -1,3 +1,7 @@
+<div style="margin-bottom:20px;">
+  <label>粘贴 FootyStats 页面链接：</label>
+  <input type="text" id="footyUrl" placeholder="粘贴链接后回车" style="width:80%;" />
+</div>
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -192,6 +196,35 @@
   h_xg_away.addEventListener('input', autoHA);
 
   run(); // 初次渲染
+</script>
+  <script>
+document.getElementById("footyUrl").addEventListener("change", async function() {
+    const url = this.value.trim();
+    if (!url) return;
+
+    try {
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        const html = data.contents;
+
+        // 从 HTML 里匹配主队和客队的 xG / xGA
+        const regex = /([\d.]+)\s*<\/td>\s*<td>([\d.]+)\s*<\/td>/g;
+        const matches = [...html.matchAll(regex)];
+
+        if (matches.length >= 2) {
+            // 这里只是演示，你需要对应表格顺序对号入座
+            document.querySelector('input[name="home_xg"]').value = matches[0][1];
+            document.querySelector('input[name="home_xga"]').value = matches[0][2];
+            document.querySelector('input[name="away_xg"]').value = matches[1][1];
+            document.querySelector('input[name="away_xga"]').value = matches[1][2];
+            alert("xG / xGA 已自动填入");
+        } else {
+            alert("未能识别数据，请检查 URL 是否正确");
+        }
+    } catch (err) {
+        alert("抓取数据失败：" + err.message);
+    }
+});
 </script>
 </body>
 </html>
