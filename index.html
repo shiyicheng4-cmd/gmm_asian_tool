@@ -1,202 +1,156 @@
 <!doctype html>
+
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>xG/Poisson 价值投注计算器（含粘贴识别 + 自动HA）</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:18px;line-height:1.45}
-  h1{font-size:20px;margin:0 0 12px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  label{font-size:13px;color:#333}
-  input,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font-size:14px}
-  textarea{resize:vertical}
-  .card{background:#f8f9fb;border:1px solid #e7e9ef;border-radius:12px;padding:14px;margin:10px 0}
-  button{width:100%;padding:12px;border:0;border-radius:10px;background:#16a34a;color:#fff;font-weight:600;font-size:16px;cursor:pointer}
-  button:hover{opacity:0.9}
-  table{width:100%;border-collapse:collapse;margin-top:10px}
-  th,td{border-bottom:1px dashed #e5e7eb;padding:8px 6px;text-align:right}
-  th:first-child,td:first-child{text-align:left}
-  .ok{color:#16a34a;font-weight:700}
-  .no{color:#ef4444;font-weight:700}
-  small{color:#6b7280}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Football Edge — 回测与模型展示</title>
+  <meta name="description" content="两年期回测与赔率/xG模型演示，含结果可视化与文件下载位。" />
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    :root{
+      --bg: #0b1020; /* slate-950 */
+      --panel: #111827; /* gray-900 */
+      --panel2:#0f172a; /* slate-900 */
+      --text:#e5e7eb; /* gray-200 */
+      --muted:#94a3b8; /* slate-400 */
+      --brand:#22d3ee; /* cyan-400 */
+      --accent:#60a5fa; /* blue-400 */
+      --ring: rgba(34,211,238,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(96,165,250,.12), transparent),
+                  radial-gradient(800px 400px at 120% 10%, rgba(34,211,238,.12), transparent),
+                  var(--bg);
+      color:var(--text); line-height:1.6;
+    }
+    a{color:var(--brand); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .container{max-width:1100px;margin:auto;padding:24px}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(90deg,var(--panel),var(--panel2));border:1px solid rgba(148,163,184,.2);padding:6px 10px;border-radius:9999px;color:var(--muted);font-size:12px}
+    .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:28px;margin:28px 0;align-items:center}
+    @media (max-width:900px){.hero{grid-template-columns:1fr}}
+    .card{background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border:1px solid rgba(148,163,184,.15); border-radius:20px; padding:22px; backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(2,8,23,.45);
+    }
+    .title{font-size:clamp(28px,5vw,44px); line-height:1.2; margin:8px 0 12px}
+    .subtitle{color:var(--muted);font-size:15px}
+    .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:#eaf2f7;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg, var(--accent), var(--brand)); color:#05121a; font-weight:700; border:none}
+    .btn:hover{filter:brightness(1.06)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+.metric{display:flex;align-items:center;gap:16px}
+.metric svg{flex:0 0 44px}
+.metric h3{margin:0;font-size:18px}
+.metric p{margin:4px 0 0;color:var(--muted);font-size:14px}
+
+.section{margin:36px 0}
+.section h2{font-size:22px;margin:0 0 12px}
+
+.code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:13px; background:#0b1220; border:1px solid rgba(148,163,184,.2); padding:12px;border-radius:12px; overflow:auto}
+
+footer{margin:40px 0 12px; color:var(--muted); font-size:12px; text-align:center}
+
+.ring{outline:2px solid var(--ring); outline-offset:3px}
+
+  </style>
 </head>
 <body>
-  <h1>价值投注计算器</h1>
-
-  <div class="card" id="paste-card">
-    <b>一键粘贴 FootyStats 文本并自动识别</b>
-    <p><small>打开比赛页 → 展开“显示全部” → 复制两队统计卡片（含主/客场 xG 与 预计失球数/xGA）→ 粘贴到下面 → 点“识别并填充”。</small></p>
-    <textarea id="fs_paste" rows="8" placeholder="在这里粘贴 FootyStats 的文字块"></textarea>
-    <div style="margin-top:8px;display:flex;gap:8px">
-      <button onclick="parseFootyStatsPaste()" style="flex:1;background:#2563eb">识别并填充</button>
-      <button onclick="clearPaste()" style="flex:1;background:#6b7280">清空</button>
-    </div>
-  </div>
-
+  <div class="container">
+    <div class="nav">
+      <span class="badge">⚽ Football Edge · 两年期回测演示</span>
+      <a href="#download" class="badge" style="background:transparent">📦 下载</a>
+    </div><section class="hero">
   <div class="card">
-    <div class="grid">
-      <div><label>主队 xG（进攻）</label><input id="hxg" type="number" step="0.01" value="1.60"></div>
-      <div><label>主队 xGA（被创造）</label><input id="hxga" type="number" step="0.01" value="1.10"></div>
-      <div><label>客队 xG（进攻）</label><input id="axg" type="number" step="0.01" value="1.30"></div>
-      <div><label>客队 xGA（被创造）</label><input id="axga" type="number" step="0.01" value="1.40"></div>
-
-      <div><label>主场优势系数（HA，1.05~1.15）</label><input id="ha" type="number" step="0.01" value="1.08"></div>
-      <div><label>λ 计算权重（xG_for 占比）</label><input id="w" type="number" step="0.01" value="0.60"></div>
-
-      <div><label>bet365 Over 2.5 赔率</label><input id="o_over" type="number" step="0.01" value="1.95"></div>
-      <div><label>bet365 Under 2.5 赔率</label><input id="o_under" type="number" step="0.01" value="1.85"></div>
-      <div><label>主胜赔率</label><input id="o_h" type="number" step="0.01" value="2.10"></div>
-      <div><label>平局赔率</label><input id="o_d" type="number" step="0.01" value="3.40"></div>
-      <div><label>客胜赔率</label><input id="o_a" type="number" step="0.01" value="3.60"></div>
-
-      <div><label>EV 阈值（大小球）</label><input id="ev_ou" type="number" step="0.01" value="0.05"></div>
-      <div><label>EV 阈值（1X2）</label><input id="ev_1x2" type="number" step="0.01" value="0.07"></div>
-      <div><label>Edge 阈值（%）</label><input id="edge" type="number" step="0.01" value="0.03"></div>
-      <div><label>Poisson 截断（最大进球）</label><input id="gmax" type="number" step="1" value="6"></div>
+    <h1 class="title">基于 赔率 × xG 的 1X2 模型</h1>
+    <p class="subtitle">融合收盘赔率的隐含概率与 Understat 滚动 xG（3/5/10 场），用时序交叉验证训练，按 <strong>模型公平概率 − 市场公平概率 ≥ 2.5%</strong> 且 <strong>赔率≥1.70</strong> 进行下注筛选，并采用 <strong>1/4 Kelly</strong> 资金管理。</p>
+    <div class="cta">
+      <a class="btn primary" href="#results">查看回测结果</a>
+      <a class="btn" href="#how">如何部署到 GitHub Pages</a>
     </div>
-
-    <!-- 自动计算 HA -->
-    <div class="card" style="margin-top:14px">
-      <b>自动计算主场优势系数（HA）</b>
-      <div class="grid" style="margin-top:8px">
-        <div><label>主队【主场】xG</label><input id="h_xg_home" type="number" step="0.01" placeholder="例如 1.96"></div>
-        <div><label>主队【客场】xG</label><input id="h_xg_away" type="number" step="0.01" placeholder="例如 1.62"></div>
-      </div>
-      <small>HA = 主场xG ÷ 客场xG，并夹取（1.03～1.20）</small>
-    </div>
-
-    <p><button onclick="run()">计算</button></p>
-    <small>λ公式：λH=(w·xGhome+(1−w)·xGAaway)·HA； λA=(w·xGaway+(1−w)·xGAhome)/HA</small>
   </div>
+  <div class="card">
+    <!-- 简单的SVG占位图（权益曲线） -->
+    <svg viewBox="0 0 600 340" width="100%" height="220" role="img" aria-label="Equity curve placeholder">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(96,165,250,.8)"/>
+          <stop offset="100%" stop-color="rgba(34,211,238,.2)"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="600" height="340" fill="#0b1220" rx="14"/>
+      <polyline fill="none" stroke="url(#g)" stroke-width="3" points="20,300 80,280 120,260 160,270 210,230 260,240 300,210 340,220 380,180 430,150 480,170 540,120"/>
+      <text x="24" y="28" fill="#9fb6d1" font-size="14">Cumulative Equity</text>
+    </svg>
+    <p class="subtitle" style="margin-top:8px">* 上图为示意。运行回测后，真实 <code>equity_curve.png</code> 将在此处替换。</p>
+  </div>
+</section>
 
-  <div id="out"></div>
-
-<script>
-function pois(k, lambda){ return Math.exp(-lambda) * Math.pow(lambda, k) / fact(k); }
-function fact(n){ let r=1; for(let i=2;i<=n;i++) r*=i; return r; }
-function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
-
-function run(){
-  const hxg_el=document.getElementById('hxg'), hxga_el=document.getElementById('hxga'),
-        axg_el=document.getElementById('axg'), axga_el=document.getElementById('axga'),
-        ha_el=document.getElementById('ha'), w_el=document.getElementById('w'), gmax_el=document.getElementById('gmax'),
-        o_over_el=document.getElementById('o_over'), o_under_el=document.getElementById('o_under'),
-        o_h_el=document.getElementById('o_h'), o_d_el=document.getElementById('o_d'), o_a_el=document.getElementById('o_a'),
-        ev_ou_el=document.getElementById('ev_ou'), ev_1x2_el=document.getElementById('ev_1x2'), edge_el=document.getElementById('edge');
-
-  const hxg=+hxg_el.value, hxga=+hxga_el.value, axg=+axg_el.value, axga=+axga_el.value;
-  const ha=+ha_el.value, w=+w_el.value, gmax=+gmax_el.value;
-  const o_over=+o_over_el.value, o_under=+o_under_el.value, o_h=+o_h_el.value, o_d=+o_d_el.value, o_a=+o_a_el.value;
-  const evOU=+ev_ou_el.value, ev1x2=+ev_1x2_el.value, edgeThr=+edge_el.value;
-
-  const lamH = (w*hxg + (1-w)*axga)*ha;
-  const lamA = (w*axg + (1-w)*hxga)/ha;
-
-  const pH = Array.from({length:gmax+1},(_,k)=>pois(k,lamH));
-  const pA = Array.from({length:gmax+1},(_,k)=>pois(k,lamA));
-
-  let pDraw=0, pHome=0, pAway=0, pOver25=0, sum=0;
-  for(let i=0;i<=gmax;i++){
-    for(let j=0;j<=gmax;j++){
-      const pij = pH[i]*pA[j];
-      sum += pij;
-      if(i===j) pDraw += pij; else if(i>j) pHome += pij; else pAway += pij;
-      if(i+j>=3) pOver25 += pij;
-    }
-  }
-  if(sum>0 && sum<0.999){ pDraw/=sum; pHome/=sum; pAway/=sum; pOver25/=sum; }
-
-  const qOver=1/o_over, qUnder=1/o_under;
-  const qH=1/o_h, qD=1/o_d, qA=1/o_a;
-  const sOU=qOver+qUnder, s1x2=qH+qD+qA;
-  const pMOver=qOver/sOU, pMUnder=qUnder/sOU;
-  const pMH=qH/s1x2, pMD=qD/s1x2, pMA=qA/s1x2;
-
-  const edgeOver = pOver25 - pMOver;
-  const evOver = pOver25 * o_over - 1;
-  const decOver = (evOver>=evOU && edgeOver>=edgeThr) ? 'BUY' : 'PASS';
-
-  const edgeH = pHome - pMH, edgeD = pDraw - pMD, edgeA = pAway - pMA;
-  const evH = pHome*o_h-1, evD = pDraw*o_d-1, evA = pAway*o_a-1;
-  const decH = (evH>=ev1x2 && edgeH>=edgeThr)?'BUY':'PASS';
-  const decD = (evD>=ev1x2 && edgeD>=edgeThr)?'BUY':'PASS';
-  const decA = (evA>=ev1x2 && edgeA>=edgeThr)?'BUY':'PASS';
-
-  document.getElementById('out').innerHTML = `
-    <div class="card">
-      <b>λ（预期进球）</b>
-      <table><tr><th>指标</th><th>数值</th></tr>
-      <tr><td>λ Home</td><td>${lamH.toFixed(3)}</td></tr>
-      <tr><td>λ Away</td><td>${lamA.toFixed(3)}</td></tr>
-      <tr><td>预测总进球</td><td>${(lamH+lamA).toFixed(2)}</td></tr></table>
+<section id="results" class="section">
+  <h2>回测摘要（示例占位）</h2>
+  <div class="grid">
+    <div class="card metric">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 28l8 6 20-18" stroke="var(--brand)" stroke-width="3" fill="none"/></svg>
+      <div>
+        <h3>ROI</h3>
+        <p>+7.4%（按总下注额）</p>
+      </div>
     </div>
-    <div class="card">
-      <b>模型概率（泊松）</b>
-      <table><tr><th>事件</th><th>概率</th></tr>
-      <tr><td>Over 2.5</td><td>${(pOver25*100).toFixed(1)}%</td></tr>
-      <tr><td>主胜</td><td>${(pHome*100).toFixed(1)}%</td></tr>
-      <tr><td>平局</td><td>${(pDraw*100).toFixed(1)}%</td></tr>
-      <tr><td>客胜</td><td>${(pAway*100).toFixed(1)}%</td></tr></table>
+    <div class="card metric">
+      <svg viewBox="0 0 48 48"><rect x="4" y="6" width="40" height="28" rx="6" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 30h28" stroke="var(--accent)" stroke-width="3"/><circle cx="34" cy="34" r="6" fill="var(--accent)"/></svg>
+      <div>
+        <h3>命中率</h3>
+        <p>44.1%（H/D/A 综合）</p>
+      </div>
     </div>
-    <div class="card">
-      <b>市场去水概率</b>
-      <table><tr><th>事件</th><th>概率</th></tr>
-      <tr><td>Over 2.5</td><td>${(pMOver*100).toFixed(1)}%</td></tr>
-      <tr><td>主胜</td><td>${(pMH*100).toFixed(1)}%</td></tr>
-      <tr><td>平局</td><td>${(pMD*100).toFixed(1)}%</td></tr>
-      <tr><td>客胜</td><td>${(pMA*100).toFixed(1)}%</td></tr></table>
+    <div class="card metric">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 24h28" stroke="var(--brand)" stroke-width="3"/><path d="M24 10v28" stroke="var(--brand)" stroke-width="3"/></svg>
+      <div>
+        <h3>最大回撤</h3>
+        <p>-9.8%（权益曲线）</p>
+      </div>
     </div>
-    <div class="card">
-      <b>Edge / EV 与决策</b>
-      <table><tr><th>市场</th><th>Edge</th><th>EV</th><th>决定</th></tr>
-      <tr><td>Over 2.5 @ ${o_over}</td><td>${(edgeOver*100).toFixed(1)}%</td><td>${(evOver*100).toFixed(1)}%</td><td>${decOver}</td></tr>
-      <tr><td>主胜 @ ${o_h}</td><td>${(edgeH*100).toFixed(1)}%</td><td>${(evH*100).toFixed(1)}%</td><td>${decH}</td></tr>
-      <tr><td>平局 @ ${o_d}</td><td>${(edgeD*100).toFixed(1)}%</td><td>${(evD*100).toFixed(1)}%</td><td>${decD}</td></tr>
-      <tr><td>客胜 @ ${o_a}</td><td>${(edgeA*100).toFixed(1)}%</td><td>${(evA*100).toFixed(1)}%</td><td>${decA}</td></tr></table>
-    </div>
-  `;
-}
+  </div>
+  <p class="subtitle" style="margin-top:10px">* 将运行生成的 <code>merged_dataset.csv</code> / <code>backtest_trades.csv</code> 连到此页面即可自动展示（可后续接入简单JS渲染）。</p>
+</section>
 
-function clearPaste(){ document.getElementById('fs_paste').value=''; }
+<section id="download" class="section">
+  <h2>下载 & 运行</h2>
+  <div class="card">
+    <ol>
+      <li>把本仓库根目录下的 <code>index.html</code> 提交到 GitHub。</li>
+      <li>按 README 下载 football-data 与 Understat 的 CSV，放入 <code>data/</code> 路径；运行 <code>python backtest.py</code> 生成结果。</li>
+      <li>把 <code>output/</code> 的图片/CSV 推到仓库（或放到 <code>docs/</code> 目录供页面读取）。</li>
+    </ol>
+    <p class="subtitle">你也可以在此处放一个「下载回测包」按钮，指向仓库里的 zip 或 Release。</p>
+  </div>
+</section>
 
-function extractBlock(txt){
-  const t = txt.replace(/\s+/g,' ').replace(/：/g,':').toLowerCase();
-  const homeIdx = t.search(/主场|home/);
-  const awayIdx = t.search(/客场|away/);
-  let homeSeg='', awaySeg='';
-  if(homeIdx!==-1 && awayIdx!==-1 && homeIdx<awayIdx){ homeSeg=t.slice(homeIdx,awayIdx); awaySeg=t.slice(awayIdx); }
-  else{
-    const parts = t.split(/[,;。！!？?\|]/g);
-    homeSeg = parts.filter(s=>/(主场|home)/.test(s)).join(' ');
-    awaySeg = parts.filter(s=>/(客场|away)/.test(s)).join(' ');
-  }
-  const fxg  = seg => (seg.match(/xg[^0-9]*([0-9]+(?:\.[0-9]+)?)/) || seg.match(/expected goals[^0-9]*([0-9]+(?:\.[0-9]+)?)/))?.[1];
-  const fxga = seg => (seg.match(/xga[^0-9]*([0-9]+(?:\.[0-9]+)?)/) || seg.match(/预计失球数[^0-9]*([0-9]+(?:\.[0-9]+)?)/) || seg.match(/conceded xg[^0-9]*([0-9]+(?:\.[0-9]+)?)/))?.[1];
-  return {
-    h_xg:  fxg(homeSeg)?parseFloat(fxg(homeSeg)):NaN,
-    h_xga: fxga(homeSeg)?parseFloat(fxga(homeSeg)):NaN,
-    a_xg:  fxg(awaySeg)?parseFloat(fxg(awaySeg)):NaN,
-    a_xga: fxga(awaySeg)?parseFloat(fxga(awaySeg)):NaN
-  };
-}
+<section id="how" class="section">
+  <h2>如何在 GitHub 上开启 Pages（手机也可操作）</h2>
+  <div class="card">
+    <ol>
+      <li>进入仓库 <strong>Settings</strong> → 向下滑到 <strong>Pages</strong>（有时在 “Code and automation” 分组下）。</li>
+      <li>Source 选择：<strong>Deploy from a branch</strong>。</li>
+      <li>Branch 选择：<strong>main</strong>，<strong>root</strong>（/），然后点击 <strong>Save</strong>。</li>
+      <li>等待约几十秒，访问：<code>https://你的用户名.github.io/你的仓库名/</code>。</li>
+    </ol>
+    <p class="subtitle">如果你更喜欢把网页文件放到 <code>docs/</code> 目录，也可以将 Pages 的目录设置改为 <code>/docs</code>。</p>
+  </div>
+</section>
 
-function parseFootyStatsPaste(){
-  const hxg_el=document.getElementById('hxg'), hxga_el=document.getElementById('hxga'),
-        axg_el=document.getElementById('axg'), axga_el=document.getElementById('axga'),
-        ha_el=document.getElementById('ha'), hxh=document.getElementById('h_xg_home'),
-        hxa=document.getElementById('h_xg_away');
-  const txt = document.getElementById('fs_paste').value.trim();
-  if(!txt){ alert('请先把 FootyStats 的文本粘贴进来'); return; }
-  const { h_xg, h_xga, a_xg, a_xga } = extractBlock(txt);
-  if(Number.isFinite(h_xg))  hxg_el.value  = h_xg.toFixed(2);
-  if(Number.isFinite(h_xga)) hxga_el.value = h_xga.toFixed(2);
-  if(Number.isFinite(a_xg))  axg_el.value  = a_xg.toFixed(2);
-  if(Number.isFinite(a_xga)) axga_el.value = a_xga.toFixed(2);
-  if(hxh && hxa && Number.isFinite(h_xg)){
-    const m = txt.toLowerCase().match(/主.*?客场.*?xg[^0-9]*([0-9]+(?:\.[0-9]+)?)/) || txt.toLowerCase().match(/home.*?away.*?xg[^0-9]*([0-9]+(?:\.[0-9]+)?)/);
-    if(m){
-      const h_xg_away = parseFloat(m[1]);
-      hxh.value = h_xg.toFixed(2);
-      hxa.value = h_xg
+<footer>© <span id="y"></span> Football Edge. 仅作教育与研究用途，不构成投资/博彩建议。</footer>
+
+  </div>
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
