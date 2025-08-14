@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>⚽ 浏览器版回测（上传你的Excel/CSV即可）</title>
+<meta name="theme-color" content="#0f172a"/>
+<style>
+  :root{--bg:#0b1020;--panel:#0f172a;--soft:#111827;--text:#e5e7eb;--muted:#9aa7b8;--brand:#22d3ee;--accent:#60a5fa}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%, rgba(96,165,250,.12), transparent),radial-gradient(800px 400px at 120% 10%, rgba(34,211,238,.12), transparent),var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  .container{max-width:1100px;margin:auto;padding:20px}
+  h1{margin:6px 0 12px;font-size:clamp(22px,4vw,34px)}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));border:1px solid rgba(148,163,184,.18);border-radius:18px;padding:16px;margin:14px 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:900px){.row{grid-template-columns:1fr}}
+  label{font-size:13px;color:var(--muted)}
+  input,select,button{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:#eaf2f7}
+  button{background:linear-gradient(135deg,var(--accent),var(--brand));color:#03111a;border:none;font-weight:700;cursor:pointer}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px;border-bottom:1px solid rgba(148,163,184,.12)}
+  th{position:sticky;top:0;background:#0b1220}
+  .scroll{max-height:420px;overflow:auto;border:1px solid rgba(148,163,184,.15);border-radius:12px}
+  .badge{display:inline-flex;gap:6px;align-items:center;background:#0b1220;border:1px solid rgba(148,163,184,.25);padding:6px 10px;border-radius:9999px}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .kpi .card{display:flex;align-items:center;gap:12px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>⚽ 浏览器版回测 · 读取你的 Excel/CSV</h1>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>上传数据文件（.xlsx / .csv）</label>
+        <input type="file" id="file" accept=".xlsx,.csv"/>
+      </div>
+      <div>
+        <label>示例文件（可选）</label>
+        <button id="loadDemo">载入内置示例</button>
+      </div>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:8px 0 0">要求至少包含：日期、主队、客队、赛果（H/D/A 或 比分）、主/平/客 三个赔率列（十进制）。</p>
+  </div>
+
+  <div id="mapArea" class="card" style="display:none">
+    <h3 style="margin-top:0">字段映射</h3>
+    <div class="row">
+      <div><label>日期列</label><select id="colDate"></select></div>
+      <div><label>主队列</label><select id="colHome"></select></div>
+      <div><label>客队列</label><select id="colAway"></select></div>
+      <div><label>赛果列（H/D/A 或 比分如 2-1）</label><select id="colRes"></select></div>
+      <div><label>主胜赔率</label><select id="colOddH"></select></div>
+      <div><label>平局赔率</label><select id="colOddD"></select></div>
+      <div><label>客胜赔率</label><select id="colOddA"></select></div>
+    </div>
+    <div style="margin-top:12px"><button id="confirmMap">确认映射并预处理</button></div>
+  </div>
+
+  <div id="runArea" class="card" style="display:none">
+    <h3 style="margin-top:0">回测参数</h3>
+    <div class="row">
+      <div><label>起始日期（可留空）</label><input id="startDate" placeholder="YYYY-MM-DD"/></div>
+      <div><label>结束日期（可留空）</label><input id="endDate" placeholder="YYYY-MM-DD"/></div>
+      <div><label>最小赔率</label><input id="minOdds" type="number" step="0.01" value="1.70"/></div>
+      <div><label>阈值：模型概率 - 市场概率 ≥</label><input id="edge" type="number" step="0.001" value="0.025"/></div>
+      <div><label>凯利分数（0~1，0=固定1单位）</label><input id="kelly" type="number" step="0.05" value="0.25"/></div>
+      <div><label>训练/验证切分（按日期）%</label><input id="split" type="number" step="1" value="70"/></div>
+    </div>
+    <p class="badge" style="margin-top:10px">模型：用赔率隐含概率 + 简单校准（按训练集对每个结果做 Platt 缓和），浏览器内计算。</p>
+    <div style="margin-top:12px"><button id="run">开始回测</button></div>
+  </div>
+
+  <div id="kpi" class="kpi" style="display:none">
+    <div class="card"><div style="font-size:34px" id="kpiRoi">—</div><div>ROI（对已下注）</div></div>
+    <div class="card"><div style="font-size:34px" id="kpiHit">—</div><div>命中率</div></div>
+    <div class="card"><div style="font-size:34px" id="kpiN">—</div><div>下注次数</div></div>
+  </div>
+
+  <div id="chartCard" class="card" style="display:none">
+    <h3 style="margin:0 0 8px">权益曲线</h3>
+    <canvas id="chart" height="220"></canvas>
+  </div>
+
+  <div id="tableCard" class="card" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h3 style="margin:0">交易明细（前 300 行）</h3>
+      <a id="dl" class="badge" download="backtest_trades.csv">⬇️ 导出 CSV</a>
+    </div>
+    <div class="scroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- libs -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+let raw = [];      // original rows
+let cols = [];     // column names
+let mapped = {};   // mapping
+let prepared = []; // normalized rows
+
+const el = (id)=>document.getElementById(id);
+
+// load demo
+el('loadDemo').onclick = ()=>{
+  const demo = `date,home,away,result,odd_h,odd_d,odd_a
+2025-08-01,TeamA,TeamB,H,1.90,3.40,4.20
+2025-08-05,TeamC,TeamD,A,2.20,3.30,3.40
+2025-08-10,TeamE,TeamF,D,2.60,3.10,2.90
+2025-08-12,TeamG,TeamH,H,1.75,3.60,4.60
+2025-08-15,TeamI,TeamJ,A,2.90,3.20,2.50`;
+  Papa.parse(demo, {header:true, complete: (res)=> {
+    raw = res.data.filter(r=>r.date);
+    cols = Object.keys(raw[0]);
+    showMapping();
+  }});
+};
+
+// file loader
+el('file').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  if(f.name.endsWith('.csv')){
+    Papa.parse(f, {header:true, skipEmptyLines:true, complete: (res)=>{
+      raw = res.data;
+      cols = res.meta.fields;
+      showMapping();
+    }});
+  }else{
+    const data = await f.arrayBuffer();
+    const wb = XLSX.read(data, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {defval:null});
+    raw = json;
+    cols = Object.keys(json[0]||{});
+    showMapping();
+  }
+});
+
+function showOptions(sel){
+  sel.innerHTML = cols.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+function showMapping(){
+  el('mapArea').style.display = 'block';
+  ['colDate','colHome','colAway','colRes','colOddH','colOddD','colOddA'].forEach(id=>showOptions(el(id)));
+  // guess
+  const lower = cols.map(c=>c.toLowerCase());
+  const guess = (keys)=>{
+    for(const k of keys){
+      const i = lower.findIndex(x=> x.includes(k));
+      if(i>=0) return cols[i];
+    }
+    return cols[0];
+  };
+  el('colDate').value = guess(['date','match_date','time']);
+  el('colHome').value = guess([
