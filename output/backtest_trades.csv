@@ -1,0 +1,4 @@
+date,home,away,sel,odds,prob,stake,ev,win,pnl,equity
+2025-08-01,TeamA,TeamB,H,1.90,0.56,0.07,0.064,1,0.063,1.063
+2025-08-05,TeamC,TeamD,A,2.80,0.40,0.05,0.120,0,-0.050,1.010
+2025-08-10,TeamE,TeamF,D,3.30,0.33,0.04,0.089,1,0.092,1.103
