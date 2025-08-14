@@ -5,28 +5,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Football Edge — 回测与模型展示</title>
-  <meta name="description" content="两年期回测与赔率/xG模型演示，含结果可视化与文件下载位。" />
+  <meta name="description" content="两年期回测与赔率/xG模型演示，自动读取 output/ 下的结果并展示。" />
   <meta name="theme-color" content="#0f172a">
   <style>
     :root{
-      --bg: #0b1020; /* slate-950 */
-      --panel: #111827; /* gray-900 */
-      --panel2:#0f172a; /* slate-900 */
-      --text:#e5e7eb; /* gray-200 */
-      --muted:#94a3b8; /* slate-400 */
-      --brand:#22d3ee; /* cyan-400 */
-      --accent:#60a5fa; /* blue-400 */
-      --ring: rgba(34,211,238,.35);
+      --bg: #0b1020; --panel: #111827; --panel2:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --brand:#22d3ee; --accent:#60a5fa; --ring: rgba(34,211,238,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{
-      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
       background: radial-gradient(1200px 600px at 20% -10%, rgba(96,165,250,.12), transparent),
-                  radial-gradient(800px 400px at 120% 10%, rgba(34,211,238,.12), transparent),
-                  var(--bg);
-      color:var(--text); line-height:1.6;
-    }
+                  radial-gradient(800px 400px at 120% 10%, rgba(34,211,238,.12), transparent), var(--bg);
+      color:var(--text); line-height:1.6;}
     a{color:var(--brand); text-decoration:none}
     a:hover{text-decoration:underline}
     .container{max-width:1100px;margin:auto;padding:24px}
@@ -34,123 +24,141 @@
     .badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(90deg,var(--panel),var(--panel2));border:1px solid rgba(148,163,184,.2);padding:6px 10px;border-radius:9999px;color:var(--muted);font-size:12px}
     .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:28px;margin:28px 0;align-items:center}
     @media (max-width:900px){.hero{grid-template-columns:1fr}}
-    .card{background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
-      border:1px solid rgba(148,163,184,.15); border-radius:20px; padding:22px; backdrop-filter: blur(6px);
-      box-shadow: 0 10px 30px rgba(2,8,23,.45);
-    }
+    .card{background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)); border:1px solid rgba(148,163,184,.15); border-radius:20px; padding:22px; backdrop-filter: blur(6px); box-shadow: 0 10px 30px rgba(2,8,23,.45);}
     .title{font-size:clamp(28px,5vw,44px); line-height:1.2; margin:8px 0 12px}
     .subtitle{color:var(--muted);font-size:15px}
     .cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
     .btn{padding:10px 14px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:#eaf2f7;cursor:pointer}
     .btn.primary{background:linear-gradient(135deg, var(--accent), var(--brand)); color:#05121a; font-weight:700; border:none}
-    .btn:hover{filter:brightness(1.06)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
-@media (max-width:900px){.grid{grid-template-columns:1fr}}
-
-.metric{display:flex;align-items:center;gap:16px}
-.metric svg{flex:0 0 44px}
-.metric h3{margin:0;font-size:18px}
-.metric p{margin:4px 0 0;color:var(--muted);font-size:14px}
-
-.section{margin:36px 0}
-.section h2{font-size:22px;margin:0 0 12px}
-
-.code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:13px; background:#0b1220; border:1px solid rgba(148,163,184,.2); padding:12px;border-radius:12px; overflow:auto}
-
-footer{margin:40px 0 12px; color:var(--muted); font-size:12px; text-align:center}
-
-.ring{outline:2px solid var(--ring); outline-offset:3px}
-
+    .btn:hover{filter:brightness(1.06)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .metric{display:flex;align-items:center;gap:16px}
+    .metric svg{flex:0 0 44px}
+    .metric h3{margin:0;font-size:18px}
+    .metric p{margin:4px 0 0;color:var(--muted);font-size:14px}
+    .section{margin:36px 0}
+    .section h2{font-size:22px;margin:0 0 12px}
+    .code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:13px; background:#0b1220; border:1px solid rgba(148,163,184,.2); padding:12px;border-radius:12px; overflow:auto}
+    footer{margin:40px 0 12px; color:var(--muted); font-size:12px; text-align:center}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{padding:8px;border-bottom:1px solid rgba(148,163,184,.12)}
+    th{position:sticky;top:0;background:#0b1220}
+    .scroll{max-height:420px;overflow:auto;border:1px solid rgba(148,163,184,.15);border-radius:12px}
+    .hint{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="nav">
       <span class="badge">⚽ Football Edge · 两年期回测演示</span>
-      <a href="#download" class="badge" style="background:transparent">📦 下载</a>
+      <a href="#live" class="badge" style="background:transparent">📊 实时结果</a>
     </div><section class="hero">
   <div class="card">
     <h1 class="title">基于 赔率 × xG 的 1X2 模型</h1>
     <p class="subtitle">融合收盘赔率的隐含概率与 Understat 滚动 xG（3/5/10 场），用时序交叉验证训练，按 <strong>模型公平概率 − 市场公平概率 ≥ 2.5%</strong> 且 <strong>赔率≥1.70</strong> 进行下注筛选，并采用 <strong>1/4 Kelly</strong> 资金管理。</p>
     <div class="cta">
-      <a class="btn primary" href="#results">查看回测结果</a>
-      <a class="btn" href="#how">如何部署到 GitHub Pages</a>
+      <a class="btn primary" href="#live">查看最新回测</a>
+      <a class="btn" href="#how">如何部署</a>
     </div>
   </div>
-  <div class="card">
-    <!-- 简单的SVG占位图（权益曲线） -->
-    <svg viewBox="0 0 600 340" width="100%" height="220" role="img" aria-label="Equity curve placeholder">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="rgba(96,165,250,.8)"/>
-          <stop offset="100%" stop-color="rgba(34,211,238,.2)"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="600" height="340" fill="#0b1220" rx="14"/>
-      <polyline fill="none" stroke="url(#g)" stroke-width="3" points="20,300 80,280 120,260 160,270 210,230 260,240 300,210 340,220 380,180 430,150 480,170 540,120"/>
-      <text x="24" y="28" fill="#9fb6d1" font-size="14">Cumulative Equity</text>
-    </svg>
-    <p class="subtitle" style="margin-top:8px">* 上图为示意。运行回测后，真实 <code>equity_curve.png</code> 将在此处替换。</p>
+  <div class="card" id="equityCard">
+    <img id="equityImg" src="output/equity_curve.png" alt="Equity Curve" style="max-width:100%;border-radius:14px;display:none;border:1px solid rgba(148,163,184,.2)"/>
+    <svg id="equitySvg" viewBox="0 0 700 300" width="100%" height="220" role="img" aria-label="Equity curve from CSV" style="display:none"></svg>
+    <p class="subtitle" id="equityNote" style="margin-top:8px">尝试加载 <code>output/equity_curve.png</code>…</p>
   </div>
 </section>
 
-<section id="results" class="section">
-  <h2>回测摘要（示例占位）</h2>
+<section id="live" class="section">
+  <h2>最新回测结果</h2>
   <div class="grid">
-    <div class="card metric">
-      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 28l8 6 20-18" stroke="var(--brand)" stroke-width="3" fill="none"/></svg>
-      <div>
-        <h3>ROI</h3>
-        <p>+7.4%（按总下注额）</p>
-      </div>
-    </div>
-    <div class="card metric">
-      <svg viewBox="0 0 48 48"><rect x="4" y="6" width="40" height="28" rx="6" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 30h28" stroke="var(--accent)" stroke-width="3"/><circle cx="34" cy="34" r="6" fill="var(--accent)"/></svg>
-      <div>
-        <h3>命中率</h3>
-        <p>44.1%（H/D/A 综合）</p>
-      </div>
-    </div>
-    <div class="card metric">
-      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 24h28" stroke="var(--brand)" stroke-width="3"/><path d="M24 10v28" stroke="var(--brand)" stroke-width="3"/></svg>
-      <div>
-        <h3>最大回撤</h3>
-        <p>-9.8%（权益曲线）</p>
-      </div>
-    </div>
+    <div class="card metric"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 28l8 6 20-18" stroke="var(--brand)" stroke-width="3" fill="none"/></svg><div><h3>ROI</h3><p id="kpiRoi">—</p></div></div>
+    <div class="card metric"><svg viewBox="0 0 48 48"><rect x="4" y="6" width="40" height="28" rx="6" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 30h28" stroke="var(--accent)" stroke-width="3"/><circle cx="34" cy="34" r="6" fill="var(--accent)"/></svg><div><h3>命中率</h3><p id="kpiHit">—</p></div></div>
+    <div class="card metric"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#0b1220" stroke="rgba(148,163,184,.3)"/><path d="M10 24h28" stroke="var(--brand)" stroke-width="3"/><path d="M24 10v28" stroke="var(--brand)" stroke-width="3"/></svg><div><h3>样本量</h3><p id="kpiN">—</p></div></div>
   </div>
-  <p class="subtitle" style="margin-top:10px">* 将运行生成的 <code>merged_dataset.csv</code> / <code>backtest_trades.csv</code> 连到此页面即可自动展示（可后续接入简单JS渲染）。</p>
-</section>
 
-<section id="download" class="section">
-  <h2>下载 & 运行</h2>
-  <div class="card">
-    <ol>
-      <li>把本仓库根目录下的 <code>index.html</code> 提交到 GitHub。</li>
-      <li>按 README 下载 football-data 与 Understat 的 CSV，放入 <code>data/</code> 路径；运行 <code>python backtest.py</code> 生成结果。</li>
-      <li>把 <code>output/</code> 的图片/CSV 推到仓库（或放到 <code>docs/</code> 目录供页面读取）。</li>
-    </ol>
-    <p class="subtitle">你也可以在此处放一个「下载回测包」按钮，指向仓库里的 zip 或 Release。</p>
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h3 style="margin:0">交易明细</h3>
+      <a id="dlCsv" class="badge" href="output/backtest_trades.csv" download>⬇️ 下载 backtest_trades.csv</a>
+    </div>
+    <p class="hint">默认展示前 200 行（更多请下载 CSV）。</p>
+    <div class="scroll"><table id="tradesTbl"><thead></thead><tbody></tbody></table></div>
   </div>
 </section>
 
 <section id="how" class="section">
-  <h2>如何在 GitHub 上开启 Pages（手机也可操作）</h2>
+  <h2>如何部署/更新</h2>
   <div class="card">
     <ol>
-      <li>进入仓库 <strong>Settings</strong> → 向下滑到 <strong>Pages</strong>（有时在 “Code and automation” 分组下）。</li>
-      <li>Source 选择：<strong>Deploy from a branch</strong>。</li>
-      <li>Branch 选择：<strong>main</strong>，<strong>root</strong>（/），然后点击 <strong>Save</strong>。</li>
-      <li>等待约几十秒，访问：<code>https://你的用户名.github.io/你的仓库名/</code>。</li>
+      <li>把本文件 <code>index.html</code> 放在仓库根目录（或 <code>docs/</code> 并在 Pages 里选 docs）。</li>
+      <li>回测后将 <code>output/</code> 里的 <code>equity_curve.png</code>、<code>backtest_trades.csv</code>、<code>merged_dataset.csv</code> 推到仓库。</li>
+      <li>等待 GitHub Pages 同步完成，刷新本页面即可看到最新结果。</li>
     </ol>
-    <p class="subtitle">如果你更喜欢把网页文件放到 <code>docs/</code> 目录，也可以将 Pages 的目录设置改为 <code>/docs</code>。</p>
   </div>
 </section>
 
 <footer>© <span id="y"></span> Football Edge. 仅作教育与研究用途，不构成投资/博彩建议。</footer>
 
-  </div>
-  <script>
+  </div>  <!-- CSV 解析库 -->  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>  <script>
     document.getElementById('y').textContent = new Date().getFullYear();
-  </script>
-</body>
+
+    // 优先显示本地 equity_curve.png，不存在则从 CSV 计算绘制简易曲线
+    (function loadEquity(){
+      const img = document.getElementById('equityImg');
+      const note = document.getElementById('equityNote');
+      fetch('output/equity_curve.png', {method:'HEAD'}).then(r=>{
+        if(r.ok){ img.style.display='block'; note.textContent='来自 output/equity_curve.png'; }
+        else{ drawEquityFromCSV(); }
+      }).catch(drawEquityFromCSV);
+    })();
+
+    function drawEquityFromCSV(){
+      const svg = document.getElementById('equitySvg');
+      const note = document.getElementById('equityNote');
+      svg.style.display='block';
+      Papa.parse('output/backtest_trades.csv', {download:true, header:true, complete: (res)=>{
+        const rows = res.data.filter(r=>r.equity && !isNaN(+r.equity));
+        if(!rows.length){ note.textContent='未找到 equity_curve.png，且 CSV 无 equity 列。'; return; }
+        const eq = rows.map(r=>+r.equity);
+        // 画简单折线
+        const W=700,H=300,pad=28; const min=Math.min(...eq), max=Math.max(...eq);
+        const x=(i)=> pad + (i/(eq.length-1))*(W-2*pad);
+        const y=(v)=> H-pad - ((v-min)/(max-min||1))*(H-2*pad);
+        let d=''; eq.forEach((v,i)=>{ d += (i? 'L':'M')+x(i)+','+y(v)+' '; });
+        svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="#0b1220" rx="14"/>
+          <path d="${d}" stroke="url(#g)" fill="none" stroke-width="3"/>
+          <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(96,165,250,.9)"/><stop offset="100%" stop-color="rgba(34,211,238,.4)"/></linearGradient></defs>`;
+        note.textContent='基于 CSV 的权益曲线（output/backtest_trades.csv）';
+      }});
+    }
+
+    // 渲染交易表 + KPI
+    Papa.parse('output/backtest_trades.csv', {
+      download:true, header:true, dynamicTyping:true,
+      complete: function(res){
+        const data = res.data.filter(r=>r.date && r.odds);
+        // KPI
+        const n = data.length;
+        let stakeSum=0, pnlSum=0, winSum=0;
+        data.forEach(r=>{ stakeSum += +r.stake||0; pnlSum += +r.pnl||0; winSum += (+r.win||0); });
+        const roi = stakeSum>0? (pnlSum/stakeSum): 0;
+        document.getElementById('kpiN').textContent = n? n.toLocaleString(): '—';
+        document.getElementById('kpiRoi').textContent = (roi*100).toFixed(2)+'%';
+        document.getElementById('kpiHit').textContent = n? ((winSum/n)*100).toFixed(2)+'%':'—';
+
+        // 表格
+        const cols = ["date","home","away","sel","odds","prob","stake","ev","win","pnl","equity"]; 
+        const head = document.querySelector('#tradesTbl thead');
+        const body = document.querySelector('#tradesTbl tbody');
+        head.innerHTML = `<tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+        const shown = data.slice(0,200);
+        body.innerHTML = shown.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('');
+      },
+      error: function(){
+        document.querySelector('#tradesTbl thead').innerHTML = '';
+        document.querySelector('#tradesTbl tbody').innerHTML = '<tr><td>找不到 output/backtest_trades.csv</td></tr>';
+      }
+    });
+  </script></body>
 </html>
